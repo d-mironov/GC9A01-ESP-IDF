@@ -1,2 +1,8 @@
-# GC9A01-ESP-IDF
-Drivers for the GC9A01 240x240 round display library written in ESP-IDF
+# GC9A01 Driver component for ESP-IDF
+This component will contain the drivers to use the round **GC9A01** display.  
+<br>
+WIP
+
+### Contact
+- **E-Mail:** [mail@danielmironov.dev](mailto:mail@danielmironov.dev)
+- **Discord:** `moonxraccoon`
