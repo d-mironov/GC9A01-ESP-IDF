@@ -1,4 +1,4 @@
-version: "0.1pre"
+version: "0.0.1"
 description: "GC9A01 display driver component"
 url: "https://github.com/d-mironov/GC9A01-ESP-IDF"
 
