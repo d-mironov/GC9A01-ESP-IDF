@@ -1,5 +1,8 @@
 #include <cstdint>
 
+#include "driver/spi_master.h"
+#include "esp_system.h"
+
 typedef uint32_t u32;
 typedef uint8_t u8;
 
@@ -49,4 +52,5 @@ public:
     gc9a01_err_t set_font       (void);
 
 private:
+    esp_err_t cmd(spi_device_handle_t spi, u8 cmd) const;
 };

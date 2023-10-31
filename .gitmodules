@@ -1,0 +1,3 @@
+[submodule "GC9A01-ESP-IDF"]
+	path = GC9A01-ESP-IDF
+	url = git@github.com:d-mironov/GC9A01-ESP-IDF.git
