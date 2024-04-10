@@ -11,6 +11,7 @@
 
 #include "gc9a01.h"
 
+
 #define CMD_SWRESET 0x01
 #define CMD_ID 0x04
 #define CMD_DISPLAY_STATUS 0x09
@@ -135,7 +136,7 @@ GC9A01::GC9A01(spi_device_handle_t spi) : spi_(spi) {
 
 }
 
-gc9a01_err_t GC9A01::cmd(const u8 cmnd) const {
+GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     esp_err_t err;
     spi_transaction_t t;
 
@@ -150,16 +151,16 @@ gc9a01_err_t GC9A01::cmd(const u8 cmnd) const {
     // Transmit data
     err = spi_device_polling_transmit(this->spi_, &t);
     // assert(err == ESP_OK);
-    return err == ESP_OK ? GC9A01_OK : GC9A01_SPI_TX_ERROR;
+    return err == ESP_OK ? OK : SPI_TX_ERROR;
 }
 
-gc9a01_err_t GC9A01::data(const u8* data, const u8 datasize) const { 
+GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const { 
     esp_err_t err;
     spi_transaction_t t;
 
     // no data
-    if (datasize == 0) {
-        return GC9A01_OK;
+    if (datasize == 0 or data == nullptr) {
+        return OK;
     }
     // Zero out the transmission ??
     std::memset(&t, 0, sizeof(t));
@@ -168,19 +169,19 @@ gc9a01_err_t GC9A01::data(const u8* data, const u8 datasize) const {
     t.user = (void *)1; // TODO: When 1 and when 0?
     err = spi_device_polling_transmit(this->spi_, &t);
     // assert(err == ESP_OK);
-    return err == ESP_OK ? GC9A01_OK : GC9A01_SPI_TX_ERROR;
+    return err == ESP_OK ? OK : SPI_TX_ERROR;
 }
 
-gc9a01_err_t GC9A01::hard_reset() const {
+GC9A01::Error GC9A01::hard_reset() const {
     // TODO: Implement
-    return GC9A01_OK;
+    return OK;
 }
 
-gc9a01_err_t GC9A01::soft_reset() const {
+GC9A01::Error GC9A01::soft_reset() const {
     return cmd(CMD_SWRESET);
 }
 
-gc9a01_err_t GC9A01::init(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc) const {
+GC9A01::Error GC9A01::init(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc) const {
     hard_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
     soft_reset();
@@ -192,5 +193,5 @@ gc9a01_err_t GC9A01::init(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_n
         data(gc9a01_init_cmds[i].data, gc9a01_init_cmds[i].datasize);
     }
 
-    return GC9A01_OK;
+    return OK;
 }
