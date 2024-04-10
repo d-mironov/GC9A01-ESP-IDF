@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 
 #include "esp_system.h"
+#include "esp_log.h"
 
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
@@ -132,8 +133,16 @@ static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
 GC9A01::GC9A01() {
 }
 
-GC9A01::GC9A01(spi_device_handle_t spi) : spi_(spi) {
+GC9A01::GC9A01(spi_device_handle_t spi, gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst) : 
+    spi_(spi), mosi_(mosi), clk_(clk), cs_(cs), dc_(dc), rst_(rst)
+{
 
+}
+
+void GC9A01::log(const char* msg) const {
+    // TODO: Add a log level
+    // TODO: Add string format
+    ESP_LOGI("GC9A01", "%s", msg);
 }
 
 GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
@@ -148,6 +157,10 @@ GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     t.tx_buffer = &cmnd;
     // D/C needs to be set to 0
     t.user = (void *)0;
+
+    // TODO: Rewrite to log(...)
+    ESP_LOGI("GC9A01", "CMD: 0x%02x", cmnd);
+
     // Transmit data
     err = spi_device_polling_transmit(this->spi_, &t);
     // assert(err == ESP_OK);
@@ -173,24 +186,37 @@ GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const {
 }
 
 GC9A01::Error GC9A01::hard_reset() const {
-    // TODO: Implement
+    log("Hard reset");
+    gpio_set_level(this->rst_, 0);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(this->rst_, 1);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
     return OK;
 }
 
 GC9A01::Error GC9A01::soft_reset() const {
+    log("Soft reset");
     return cmd(CMD_SWRESET);
 }
 
-GC9A01::Error GC9A01::init(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc) const {
+GC9A01::Error GC9A01::init() const {
+
     hard_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
     soft_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
+    Error err;
     unsigned int i = 0;
-    while (gc9a01_init_cmds[i].datasize != 0xff) {
-        cmd(gc9a01_init_cmds[i].cmd);
-        data(gc9a01_init_cmds[i].data, gc9a01_init_cmds[i].datasize);
+    log("Sending initialization commands");
+    for (u8 idx = 0; gc9a01_init_cmds[idx].datasize != 0xff; ++idx) {
+        if ((err = cmd(gc9a01_init_cmds[idx].cmd)) != OK) {
+            return err;
+        }
+        if ((err = data(gc9a01_init_cmds[idx].data, gc9a01_init_cmds[idx].datasize)) != OK) {
+            return err;
+        }
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     return OK;

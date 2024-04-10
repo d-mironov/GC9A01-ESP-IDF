@@ -26,7 +26,7 @@ typedef struct gc9a01_cmd_t {
 class GC9A01 {
 public:
     GC9A01();
-    GC9A01(spi_device_handle_t spi_);
+    GC9A01(spi_device_handle_t spi_, gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst);
     ~GC9A01() = default;
 
     /**
@@ -38,7 +38,7 @@ public:
     };
 
     // NOTE: Maybe arguments needeODO: Add arguments for pin
-    Error init(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc) const;
+    Error init           () const;
     Error draw_pixel     (u32 x, u32 y, color_t color) const;
     Error draw_string    (u32 x, u32 y, const char* str) const;
     Error draw_box       (u32 x, u32 y, u32 w, u32 h, u32 thickness, color_t color) const;
@@ -59,9 +59,11 @@ public:
 private:
     Error cmd(const u8 cmnd) const;
     Error data(const u8* data, const u8 datasize) const;
+    void log(const char* msg) const;
     spi_device_handle_t spi_;
     gpio_num_t mosi_;
     gpio_num_t clk_;
     gpio_num_t cs_;
     gpio_num_t dc_;
+    gpio_num_t rst_;
 };
