@@ -5,13 +5,14 @@
 #include "freertos/task.h"
 
 #include "esp_system.h"
-#include "esp_log.h"
 
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 
 #include "gc9a01.h"
 
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include "esp_log.h"
 
 
 #define CMD_SWRESET 0x01
@@ -75,11 +76,11 @@
  * were not explained and as far as I know
  * are not in the datasheet
  */
-static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
-    {CMD_INTER_REG_EN_2, {0}, 0},
-    {0xeb, {0x14}, 1},
-    {CMD_INTER_REG_EN_1, {0}, 0},
-    {CMD_INTER_REG_EN_2, {0}, 0},
+static const gc9a01_cmd_t gc9a01_init_cmds[] {
+    {CMD_INTER_REG_EN_2, {0}, 0},                                                           // TODO
+    {0xeb, {0x14}, 1},                                                                      // Unknown command
+    {CMD_INTER_REG_EN_1, {0}, 0},                                                           // TODO
+    {CMD_INTER_REG_EN_2, {0}, 0},                                                           // TODO
     {0xeb, {0x14}, 1},                                                                      // Unknown command
     {0x84, {0x40}, 1},                                                                      // Unknown command
     {0x85, {0xff}, 1},                                                                      // Unknown command
@@ -95,7 +96,7 @@ static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
     {0x8f, {0xff}, 1},                                                                      // Unknown command
     {CMD_DISPLAY_FUNCTION_CTRL, {0x00, 0x20}, 2},                                           // TODO
     {CMD_MEM_ACCESS_CTL, {0x08}, 1},                                                        // TODO
-    // {CMD_PIXEL_FORMAT_SET,{ColorMode_MCU_16bit&0x77},1},
+    // {CMD_PIXEL_FORMAT_SET,{ColorMode_MCU_16bit&0x77},1},                                    // TODO
     {0x90, {0x08, 0x08, 0x08, 0x08}, 4},                                                    // Unknown command
     {0xbd, {0x06}, 1},                                                                      // Unknown command
     {0xbc, {0x00}, 1},                                                                      // Unknown command
@@ -113,7 +114,7 @@ static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
     {0xed, {0x1b, 0x0b}, 2},                                                                // Unknown command
     {0xae, {0x77}, 1},                                                                      // Unknown command
     {0xcd, {0x63}, 1},                                                                      // Unknown command
-    // Apprently the next line causes issues for some people (TODO: need to look into)
+    // Apparently the next line causes issues for some people (TODO: need to look into)
     // {0x70, {0x07,0x07,0x04,0x0e,0x0f,0x09,0x07,0x08,0x03}, 9},
     {CMD_FRAMERATE, {0x34}, 1},                                                             // TODO
     {0x62, {0x18, 0x0D, 0x71, 0xED, 0x70, 0x70, 0x18, 0x0F, 0x71, 0xEF, 0x70, 0x70}, 12},   // Unknown command
@@ -125,10 +126,10 @@ static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
     {0x98, {0x3e, 0x07}, 2},                                                                // Unknown command
     {CMD_TEARING_ON, {0}, 0},                                                               // TODO
     // TODO: Check if commands below are needed
-    // {CMD_INVERT_ON, {0x00}, 0},
-    // {CMD_SLEEP_OFF, {0x80}, 1},
-    // {CMD_DISPLAY_ON, {0x80}, 1},
-    {0, {0}, 0xff}, // END
+    {CMD_INVERT_ON, {0x00}, 0},
+    {CMD_SLEEP_OFF, {0x80}, 1},
+    {CMD_DISPLAY_ON, {0x80}, 1},
+    // {0, {0}, 0xff}, // END
 };
 
 GC9A01::GC9A01() {
@@ -143,7 +144,7 @@ GC9A01::GC9A01(spi_device_handle_t spi, gpio_num_t mosi, gpio_num_t clk, gpio_nu
 void GC9A01::log(const char* msg) const {
     // TODO: Add a log level
     // TODO: Add string format
-    ESP_LOGI("GC9A01", "%s", msg);
+    ESP_LOGD("gc9a01", "%s", msg);
 }
 
 GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
@@ -160,7 +161,7 @@ GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     t.user = (void *)0;
 
     // TODO: Rewrite to log(...)
-    ESP_LOGI("GC9A01", "CMD: 0x%02x", cmnd);
+    ESP_LOGD("gc9a01", "CMD: 0x%02x", cmnd);
 
     // Transmit data
     err = spi_device_polling_transmit(this->spi_, &t);
@@ -200,25 +201,26 @@ GC9A01::Error GC9A01::soft_reset() const {
     return cmd(CMD_SWRESET);
 }
 
-GC9A01::Error GC9A01::init() const {
-
+GC9A01::Error GC9A01::init() const
+{
     hard_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
     soft_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    Error err;
-    unsigned int i = 0;
-    log("Sending initialization commands");
-    for (u8 idx = 0; gc9a01_init_cmds[idx].datasize != 0xff; ++idx) {
-        if ((err = cmd(gc9a01_init_cmds[idx].cmd)) != OK) {
-            return err;
+    Error result = OK;
+    for (const auto& init_cmd : gc9a01_init_cmds)
+    {
+        if ((result = cmd(init_cmd.cmd)) != OK)
+        {
+            break;
         }
-        if ((err = data(gc9a01_init_cmds[idx].data, gc9a01_init_cmds[idx].datasize)) != OK) {
-            return err;
+        if ((result = data(init_cmd.data, init_cmd.datasize)) != OK)
+        {
+            break;
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
-
-    return OK;
+    return result;
 }
+
