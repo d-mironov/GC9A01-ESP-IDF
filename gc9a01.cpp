@@ -13,6 +13,7 @@
 #include "gc9a01.h"
 
 
+
 #define CMD_SWRESET 0x01
 #define CMD_ID 0x04
 #define CMD_DISPLAY_STATUS 0x09
