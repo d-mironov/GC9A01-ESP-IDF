@@ -34,20 +34,21 @@ public:
      */
     enum Error{
         OK,
-        SPI_TX_ERROR,
+        SPI_TRANSMIT_ERROR,
     };
 
     // NOTE: Maybe arguments needeODO: Add arguments for pin
-    Error init           () const;
-    Error draw_pixel     (u32 x, u32 y, color_t color) const;
-    Error draw_string    (u32 x, u32 y, const char* str) const;
-    Error draw_box       (u32 x, u32 y, u32 w, u32 h, u32 thickness, color_t color) const;
-    Error draw_circle    (u32 x, u32 y, u32 r, u32 thickness, color_t color) const;
-    Error draw_line      (u32 x, u32 y, u32 r, u32 thickness, color_t color) const;
-    Error draw_bitmap    (u32 x, u32 y, u32 w, u32 h, u8* buffer) const;
+    Error init          () const;
+    // Error draw_pixel    (u32 x, u32 y, color_t color) const;
+    // Error draw_string   (u32 x, u32 y, const char* str) const;
+    // Error draw_box      (u32 x, u32 y, u32 w, u32 h, u32 thickness, color_t color) const;
+    // Error draw_circle   (u32 x, u32 y, u32 r, u32 thickness, color_t color) const;
+    // Error draw_line     (u32 x, u32 y, u32 r, u32 thickness, color_t color) const;
+    // Error draw_bitmap   (u32 x, u32 y, u32 w, u32 h, u8* buffer) const;
 
-    Error fill_box       (u32 x, u32 y, u32 w, u32 h, color_t color) const;
-    Error fill_circle    (u32 x, u32 y, u32 r, color_t color) const;
+    // Error fill_box      (u32 x, u32 y, u32 w, u32 h, color_t color) const;
+    // Error fill_circle   (u32 x, u32 y, u32 r, color_t color) const;
+
 
     // NOTE: Arguments needed for font
     Error set_font       (void);

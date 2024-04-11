@@ -58,14 +58,14 @@
 #define CMD_FRAMERATE 0xE8
 #define CMD_SPI_2_DATA_CTRL 0xE9
 #define CMD_CHARGE_PUMP_FREQENT_CTRL 0xEC
-#define CMD_INNER_REG_EN_1 0xFE
-#define CMD_INNER_REG_EN_2 0xEF
+#define CMD_INTER_REG_EN_1 0xFE
+#define CMD_INTER_REG_EN_2 0xEF
 #define CMD_SET_GAMMA_1 0xF0
 #define CMD_SET_GAMMA_2 0xF1
 #define CMD_SET_GAMMA_3 0xF2
 #define CMD_SET_GAMMA_4 0xF3
 
-#define NUM_INIT_COMMANDS 45
+#define NUM_INIT_COMMANDS 46
 
 /*
  * Commands to initialize the screen
@@ -75,10 +75,10 @@
  * are not in the datasheet
  */
 static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
-    {CMD_INNER_REG_EN_2, {0}, 0},
+    {CMD_INTER_REG_EN_2, {0}, 0},
     {0xeb, {0x14}, 1},
-    {CMD_INNER_REG_EN_1, {0}, 0},
-    {CMD_INNER_REG_EN_2, {0}, 0},
+    {CMD_INTER_REG_EN_1, {0}, 0},
+    {CMD_INTER_REG_EN_2, {0}, 0},
     {0xeb, {0x14}, 1},                                                                      // Unknown command
     {0x84, {0x40}, 1},                                                                      // Unknown command
     {0x85, {0xff}, 1},                                                                      // Unknown command
@@ -93,7 +93,7 @@ static const gc9a01_cmd_t gc9a01_init_cmds[NUM_INIT_COMMANDS] {
     {0x8e, {0xff}, 1},                                                                      // Unknown command
     {0x8f, {0xff}, 1},                                                                      // Unknown command
     {CMD_DISPLAY_FUNCTION_CTRL, {0x00, 0x20}, 2},                                           // TODO
-    // {CMD_MEM_ACCESS_CTL,{0x08},1},                                                    // TODO
+    {CMD_MEM_ACCESS_CTL, {0x08}, 1},                                                        // TODO
     // {CMD_PIXEL_FORMAT_SET,{ColorMode_MCU_16bit&0x77},1},
     {0x90, {0x08, 0x08, 0x08, 0x08}, 4},                                                    // Unknown command
     {0xbd, {0x06}, 1},                                                                      // Unknown command
@@ -164,7 +164,7 @@ GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     // Transmit data
     err = spi_device_polling_transmit(this->spi_, &t);
     // assert(err == ESP_OK);
-    return err == ESP_OK ? OK : SPI_TX_ERROR;
+    return err == ESP_OK ? OK : SPI_TRANSMIT_ERROR;
 }
 
 GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const { 
@@ -182,7 +182,7 @@ GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const {
     t.user = (void *)1; // TODO: When 1 and when 0?
     err = spi_device_polling_transmit(this->spi_, &t);
     // assert(err == ESP_OK);
-    return err == ESP_OK ? OK : SPI_TX_ERROR;
+    return err == ESP_OK ? OK : SPI_TRANSMIT_ERROR;
 }
 
 GC9A01::Error GC9A01::hard_reset() const {
