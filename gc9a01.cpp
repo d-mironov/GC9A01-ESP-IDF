@@ -79,6 +79,8 @@
 
 #define NUM_INIT_COMMANDS 46
 
+#define GC9A01_RST_DELAY 200
+
 // TODO: Find out if ESP_LOGD is optimized out when log level is lower
 #define LOG(msg, args...) ESP_LOGD("gc9a01", msg, ##args)
 
@@ -180,6 +182,8 @@ GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const {
     esp_err_t err;
     spi_transaction_t t;
 
+    LOG("DATA: %d bytes", datasize);
+
     // no data
     if (datasize == 0 or data == nullptr) {
         return OK;
@@ -194,12 +198,19 @@ GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const {
     return err == ESP_OK ? OK : SPI_TRANSMIT_ERROR;
 }
 
+/**
+ * Perform a hard reset of the display.
+ *
+ * @returns `OK` if the reset was successful
+ */
 GC9A01::Error GC9A01::hard_reset() const {
     LOG("Hard reset");
-    gpio_set_level(this->rst_, 0);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
     gpio_set_level(this->rst_, 1);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(GC9A01_RST_DELAY / portTICK_PERIOD_MS);
+    gpio_set_level(this->rst_, 0);
+    vTaskDelay(GC9A01_RST_DELAY / portTICK_PERIOD_MS);
+    gpio_set_level(this->rst_, 1);
+    vTaskDelay(GC9A01_RST_DELAY / portTICK_PERIOD_MS);
     return OK;
 }
 
@@ -210,6 +221,7 @@ GC9A01::Error GC9A01::soft_reset() const {
 
 GC9A01::Error GC9A01::init() const
 {
+    LOG("Display Initialization");
     hard_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
     soft_reset();
@@ -231,3 +243,10 @@ GC9A01::Error GC9A01::init() const
     return result;
 }
 
+GC9A01::Error GC9A01::display_off() const {
+    return cmd(CMD_DISPLAY_OFF);
+}
+
+GC9A01::Error GC9A01::display_on() const {
+    return cmd(CMD_DISPLAY_ON);
+}
