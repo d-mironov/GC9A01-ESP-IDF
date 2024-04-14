@@ -1,3 +1,13 @@
+/*
+ * @author Daniel Mironov
+ * @copyright Copyright (c) 2024, Daniel Mironov
+ * @license MIT
+ * @file gc9a01.cpp
+ * @brief GC9A01 display driver
+ * 
+ * 
+ */
+
 #include <cstring>
 #include <stdio.h>
 
@@ -36,7 +46,7 @@
 #define CMD_VERTICAL_SCROLL_START_ADDR 0x37
 #define CMD_IDLE_OFF 0x38
 #define CMD_IDLE_ON 0x39
-#define CMD_PIXEL_FORMAT_SET 0x3A
+#define CMD_COLMOD 0x3A
 #define CMD_WRITE_MEM_CONTINUE 0x3C
 #define CMD_SET_TEAR_SCANLINE 0x44
 #define CMD_GET_SCANLINE 0x45
@@ -69,6 +79,9 @@
 
 #define NUM_INIT_COMMANDS 46
 
+// TODO: Find out if ESP_LOGD is optimized out when log level is lower
+#define LOG(msg, args...) ESP_LOGD("gc9a01", msg, ##args)
+
 /*
  * Commands to initialize the screen
  * Many commands are unknown since these
@@ -96,7 +109,7 @@ static const gc9a01_cmd_t gc9a01_init_cmds[] {
     {0x8f, {0xff}, 1},                                                                      // Unknown command
     {CMD_DISPLAY_FUNCTION_CTRL, {0x00, 0x20}, 2},                                           // TODO
     {CMD_MEM_ACCESS_CTL, {0x08}, 1},                                                        // TODO
-    // {CMD_PIXEL_FORMAT_SET,{ColorMode_MCU_16bit&0x77},1},                                    // TODO
+    {CMD_COLMOD, {COLOR_MODE_MCU_16BIT}, 1},                                                // TODO
     {0x90, {0x08, 0x08, 0x08, 0x08}, 4},                                                    // Unknown command
     {0xbd, {0x06}, 1},                                                                      // Unknown command
     {0xbc, {0x00}, 1},                                                                      // Unknown command
@@ -141,11 +154,6 @@ GC9A01::GC9A01(spi_device_handle_t spi, gpio_num_t mosi, gpio_num_t clk, gpio_nu
 
 }
 
-void GC9A01::log(const char* msg) const {
-    // TODO: Add a log level
-    // TODO: Add string format
-    ESP_LOGD("gc9a01", "%s", msg);
-}
 
 GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     esp_err_t err;
@@ -160,8 +168,7 @@ GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     // D/C needs to be set to 0
     t.user = (void *)0;
 
-    // TODO: Rewrite to log(...)
-    ESP_LOGD("gc9a01", "CMD: 0x%02x", cmnd);
+    LOG("CMD: 0x%02x", cmnd);
 
     // Transmit data
     err = spi_device_polling_transmit(this->spi_, &t);
@@ -188,7 +195,7 @@ GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const {
 }
 
 GC9A01::Error GC9A01::hard_reset() const {
-    log("Hard reset");
+    LOG("Hard reset");
     gpio_set_level(this->rst_, 0);
     vTaskDelay(100 / portTICK_PERIOD_MS);
     gpio_set_level(this->rst_, 1);
@@ -197,7 +204,7 @@ GC9A01::Error GC9A01::hard_reset() const {
 }
 
 GC9A01::Error GC9A01::soft_reset() const {
-    log("Soft reset");
+    LOG("Soft reset");
     return cmd(CMD_SWRESET);
 }
 

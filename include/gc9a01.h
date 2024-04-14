@@ -3,15 +3,19 @@
 #include "driver/spi_master.h"
 #include "esp_system.h"
 
+#define COLOR_MODE_MCU_12BIT 0x03
+#define COLOR_MODE_MCU_16BIT 0x05
+#define COLOR_MODE_MCU_18BIT 0x06
+
 typedef uint32_t u32;
 typedef uint8_t u8;
 
 
-typedef struct color_t {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} color_t;
+// typedef struct color_t {
+//     uint8_t r;
+//     uint8_t g;
+//     uint8_t b;
+// } color_t;
 
 typedef struct gc9a01_cmd_t {
     // Command
@@ -37,9 +41,15 @@ public:
         SPI_TRANSMIT_ERROR,
     };
 
+    struct Color {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+    };
+
     // NOTE: Maybe arguments needeODO: Add arguments for pin
     Error init          () const;
-    // Error draw_pixel    (u32 x, u32 y, color_t color) const;
+    Error draw_pixel    (u32 x, u32 y, Color color) const;
     // Error draw_string   (u32 x, u32 y, const char* str) const;
     // Error draw_box      (u32 x, u32 y, u32 w, u32 h, u32 thickness, color_t color) const;
     // Error draw_circle   (u32 x, u32 y, u32 r, u32 thickness, color_t color) const;
@@ -60,7 +70,6 @@ public:
 private:
     Error cmd(const u8 cmnd) const;
     Error data(const u8* data, const u8 datasize) const;
-    void log(const char* msg) const;
     spi_device_handle_t spi_;
     gpio_num_t mosi_;
     gpio_num_t clk_;
