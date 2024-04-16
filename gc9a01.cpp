@@ -10,6 +10,8 @@
 
 #include <cstring>
 #include <stdio.h>
+#include <algorithm>
+#include <array>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -36,7 +38,8 @@
 #define CMD_INVERT_ON 0x21
 #define CMD_DISPLAY_OFF 0x28
 #define CMD_DISPLAY_ON 0x29
-//...
+#define CMD_COLADDRSET 0x2A
+#define CMD_ROWADDRSET 0x2B
 #define CMD_MEMORY_WRITE 0x2C
 #define CMD_PARTIAL_AREA 0x30
 #define CMD_VERTICAL_SCROLL 0x33
@@ -76,6 +79,11 @@
 #define CMD_SET_GAMMA_2 0xF1
 #define CMD_SET_GAMMA_3 0xF2
 #define CMD_SET_GAMMA_4 0xF3
+
+#define ERROR_CHECK(error)\
+if ((error) != OK) {      \
+    return error;         \
+}
 
 #define NUM_INIT_COMMANDS 46
 
@@ -178,11 +186,11 @@ GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     return err == ESP_OK ? OK : SPI_TRANSMIT_ERROR;
 }
 
-GC9A01::Error GC9A01::data(const u8* data, const u8 datasize) const { 
+GC9A01::Error GC9A01::data(const u8* data, const u32 datasize) const { 
     esp_err_t err;
     spi_transaction_t t;
 
-    LOG("DATA: %d bytes", datasize);
+    LOG("DATA: %ld bytes", datasize);
 
     // no data
     if (datasize == 0 or data == nullptr) {
@@ -249,4 +257,63 @@ GC9A01::Error GC9A01::display_off() const {
 
 GC9A01::Error GC9A01::display_on() const {
     return cmd(CMD_DISPLAY_ON);
+}
+
+GC9A01::Error GC9A01::invert(bool inv) const {
+    return cmd(inv ? CMD_INVERT_ON : CMD_INVERT_OFF);
+}
+
+GC9A01::Error GC9A01::set_write_window(const u8 x, const u8 y, const u8 w, const u8 h) const {
+    // TODO
+    if (x > GC9A01_WIDTH || y > GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    if (x + w >= GC9A01_WIDTH || y + h >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    Error err;
+    const u8 col[] = {x, static_cast<u8>(x + w - 1U)};
+    const u8 row[] = {y, static_cast<u8>(y + h - 1U)};
+    err = cmd(CMD_COLADDRSET);
+    ERROR_CHECK(err);
+    data(col, 2);
+    ERROR_CHECK(err);
+    cmd(CMD_ROWADDRSET);
+    ERROR_CHECK(err);
+    data(row, 2);
+    ERROR_CHECK(err);
+    cmd(CMD_MEMORY_WRITE);
+    ERROR_CHECK(err);
+    return OK;
+}
+
+GC9A01::Error GC9A01::fill(const Color color) const {
+    // NOTE: Not working at all :(
+    Error err;
+    LOG("Fill screen: Color(%d)", color.to_16bit());
+    u8 buf[GC9A01_PIXELS * 2] = {0};
+    u16 color16 = color.to_16bit();
+    for (u32 i = 0; i < GC9A01_PIXELS * 2; i++) {
+        buf[i++] = color16 >> 8;
+        buf[i] = color16 & 0xFF;
+    }
+    err = set_write_window(0, 0, GC9A01_WIDTH - 1, GC9A01_HEIGHT - 1);
+    ERROR_CHECK(err);
+    err = data(buf, GC9A01_PIXELS * 2);
+    ERROR_CHECK(err);
+    return OK;
+}
+
+GC9A01::Error GC9A01::set_pixel(const u32 x, const u32 y, const Color color) const {
+    if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    Error err;
+    err = set_write_window(x, y, 1, 1);
+    ERROR_CHECK(err);
+    u16 color16 = color.to_16bit();
+    u8 buf[2] = {color16 >> 8, color16 & 0xFF};
+    err = data(buf, 2);
+    ERROR_CHECK(err);
+    return OK;
 }
