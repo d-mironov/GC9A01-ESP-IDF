@@ -190,7 +190,7 @@ GC9A01::Error GC9A01::data(const u8* data, const u32 datasize) const {
     esp_err_t err;
     spi_transaction_t t;
 
-    LOG("DATA: %ld bytes", datasize);
+    // LOG("DATA: %ld bytes", datasize);
 
     // no data
     if (datasize == 0 or data == nullptr) {
@@ -202,7 +202,6 @@ GC9A01::Error GC9A01::data(const u8* data, const u32 datasize) const {
     t.tx_buffer = data;
     t.user = (void *)1; // TODO: When 1 and when 0?
     err = spi_device_polling_transmit(this->spi_, &t);
-    // assert(err == ESP_OK);
     return err == ESP_OK ? OK : SPI_TRANSMIT_ERROR;
 }
 
@@ -259,52 +258,66 @@ GC9A01::Error GC9A01::display_on() const {
     return cmd(CMD_DISPLAY_ON);
 }
 
-GC9A01::Error GC9A01::invert(bool inv) const {
+GC9A01::Error GC9A01::invert(const bool inv) const {
     return cmd(inv ? CMD_INVERT_ON : CMD_INVERT_OFF);
 }
 
 GC9A01::Error GC9A01::set_write_window(const u8 x, const u8 y, const u8 w, const u8 h) const {
-    // TODO
     if (x > GC9A01_WIDTH || y > GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
     }
-    if (x + w >= GC9A01_WIDTH || y + h >= GC9A01_HEIGHT) {
+    if (x + w > GC9A01_WIDTH || y + h > GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
     }
+
     Error err;
-    const u8 col[] = {x, static_cast<u8>(x + w - 1U)};
-    const u8 row[] = {y, static_cast<u8>(y + h - 1U)};
+    // Column address set
+    u16 start = x;
+    u16 end = x + w - 1;
+    const u8 col[] = {
+        static_cast<u8>(start >> 8),
+        static_cast<u8>(start & 0xFF),
+        static_cast<u8>(end >> 8),
+        static_cast<u8>(end & 0xFF)
+    };
     err = cmd(CMD_COLADDRSET);
     ERROR_CHECK(err);
-    data(col, 2);
+    err = data(col, 4);
     ERROR_CHECK(err);
-    cmd(CMD_ROWADDRSET);
+
+    // Row address set
+    start = y;
+    end = y + h - 1;
+    const u8 row[] = {
+        static_cast<u8>(start >> 8),
+        static_cast<u8>(start & 0xFF),
+        static_cast<u8>(end >> 8),
+        static_cast<u8>(end & 0xFF)
+    };
+    err = cmd(CMD_ROWADDRSET);
     ERROR_CHECK(err);
-    data(row, 2);
+    err = data(row, 4);
     ERROR_CHECK(err);
-    cmd(CMD_MEMORY_WRITE);
+    err = cmd(CMD_MEMORY_WRITE);
     ERROR_CHECK(err);
     return OK;
 }
 
 GC9A01::Error GC9A01::fill(const Color color) const {
-    // NOTE: Not working at all :(
     Error err;
     LOG("Fill screen: Color(%d)", color.to_16bit());
-    u8 buf[GC9A01_PIXELS * 2] = {0};
+    err = set_write_window(0, 0, GC9A01_WIDTH, GC9A01_HEIGHT);
+    ERROR_CHECK(err);
     u16 color16 = color.to_16bit();
-    for (u32 i = 0; i < GC9A01_PIXELS * 2; i++) {
-        buf[i++] = color16 >> 8;
-        buf[i] = color16 & 0xFF;
+    u8 buf[2] = {static_cast<u8>(color16 >> 8), static_cast<u8>(color16 & 0xFF)};
+    for (u32 i = 0; i < GC9A01_PIXELS; i++) {
+        err = data(buf, 2);
+        ERROR_CHECK(err);
     }
-    err = set_write_window(0, 0, GC9A01_WIDTH - 1, GC9A01_HEIGHT - 1);
-    ERROR_CHECK(err);
-    err = data(buf, GC9A01_PIXELS * 2);
-    ERROR_CHECK(err);
     return OK;
 }
 
-GC9A01::Error GC9A01::set_pixel(const u32 x, const u32 y, const Color color) const {
+GC9A01::Error GC9A01::set_pixel(const u16 x, const u16 y, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
     }
@@ -312,8 +325,13 @@ GC9A01::Error GC9A01::set_pixel(const u32 x, const u32 y, const Color color) con
     err = set_write_window(x, y, 1, 1);
     ERROR_CHECK(err);
     u16 color16 = color.to_16bit();
-    u8 buf[2] = {color16 >> 8, color16 & 0xFF};
+    u8 buf[2] = {static_cast<u8>(color16 >> 8), static_cast<u8>(color16 & 0xFF)};
     err = data(buf, 2);
     ERROR_CHECK(err);
     return OK;
+}
+
+
+GC9A01::Error GC9A01::clear() const {
+    return fill(Color(0, 0, 0));
 }

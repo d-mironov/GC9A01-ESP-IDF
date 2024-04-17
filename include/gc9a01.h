@@ -19,12 +19,6 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 
 
-// typedef struct color_t {
-//     uint8_t r;
-//     uint8_t g;
-//     uint8_t b;
-// } color_t;
-
 typedef struct gc9a01_cmd_t {
     // Command
     u8 cmd;
@@ -57,6 +51,20 @@ public:
         u8 g;
         u8 b;
 
+        u16 to_rgb444() const {
+            // Scale red value to 4 bits
+            u16 r = this->r * (15.0 / 255.0);
+            // Scale green value to 4 bits
+            u16 g = this->g * (15.0 / 255.0);
+            // Scale blue value to 4 bits
+            u16 b = this->b * (15.0 / 255.0);    
+            return (r << 8) | (g << 4) | b;
+        }
+
+        u16 to_12bit() const {
+            return to_rgb444();
+        }
+
         u16 to_rgb565() const {
             // Scale red value to 5 bits
             u16 r = this->r * (31.0 / 255.0);
@@ -69,16 +77,31 @@ public:
         u16 to_16bit() const {
             return to_rgb565();
         }
+
+        u32 to_rgb666() const {
+            // Scale red value to 6 bits
+            u32 r = this->r * (63.0 / 255.0);
+            // Scale green value to 6 bits
+            u32 g = this->g * (63.0 / 255.0);
+            // Scale blue value to 6 bits
+            u32 b = this->b * (63.0 / 255.0);    
+            return (r << 12) | (g << 6) | b;
+        }
+
+        u32 to_18bit() const {
+            return to_rgb666();
+        }
     };
 
     // NOTE: Maybe arguments needeODO: Add arguments for pin
     Error init          () const;
     Error display_on    () const;
     Error display_off   () const;
-    Error invert        (bool invert) const;
+    Error invert        (const bool invert) const;
     Error clear         () const;
     
-    Error set_pixel     (u32 x, u32 y, Color color) const;
+    Error set_pixel     (u16 x, u16 y, Color color) const;
+    Error fill_rect     (Color color) const;
     Error fill          (Color color) const;
 
     // Reset
@@ -87,6 +110,8 @@ public:
 
 private:
     Error cmd(const u8 cmnd) const;
+    Error send_byte(const u8 byte) const;
+    Error send_word(const u16 word) const;
     Error data(const u8* data, const u32 datasize) const;
     Error set_write_window(const u8 x, const u8 y, const u8 w, const u8 h) const;
     spi_device_handle_t spi_;
