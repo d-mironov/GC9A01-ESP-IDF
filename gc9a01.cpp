@@ -271,6 +271,7 @@ GC9A01::Error GC9A01::set_write_window(const u8 x, const u8 y, const u8 w, const
     }
 
     Error err;
+
     // Column address set
     u16 start = x;
     u16 end = x + w - 1;
@@ -355,3 +356,71 @@ GC9A01::Error GC9A01::draw_bitmap(const u16 x, const u16 y, u16 w, u16 h, const 
     }
     return OK;
 }
+
+GC9A01::Error GC9A01::draw_fast_hline(const u16 x, const u16 y, u16 w, const Color color) const {
+    if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    if (x + w > GC9A01_WIDTH) {
+        w = GC9A01_WIDTH - x;
+    }
+    Error err;
+    err = set_write_window(x, y, w, 1);
+    ERROR_CHECK(err);
+    u16 color16 = color.to_16bit();
+    u8 buf[2] = {static_cast<u8>(color16 >> 8), static_cast<u8>(color16 & 0xFF)};
+    for (u32 i = 0; i < w; i++) {
+        err = data(buf, 2);
+        ERROR_CHECK(err);
+    }
+    return OK;
+}
+
+GC9A01::Error GC9A01::draw_fast_vline(const u16 x, const u16 y, u16 h, const Color color) const {
+    if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    if (y + h > GC9A01_HEIGHT) {
+        h = GC9A01_HEIGHT - y;
+    }
+    Error err;
+    err = set_write_window(x, y, 1, h);
+    ERROR_CHECK(err);
+    u16 color16 = color.to_16bit();
+    u8 buf[2] = {static_cast<u8>(color16 >> 8), static_cast<u8>(color16 & 0xFF)};
+    for (u32 i = 0; i < h; i++) {
+        err = data(buf, 2);
+        ERROR_CHECK(err);
+    }
+    return OK;
+}
+
+GC9A01::Error GC9A01::draw_line(u16 x0, u16 y0, u16 x1, u16 y1, const Color color) const {
+    if (x0 >= GC9A01_WIDTH || y0 >= GC9A01_HEIGHT || x1 >= GC9A01_WIDTH || y1 >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    // TODO: Implement
+    Error err;
+    return OK;
+}
+
+GC9A01::Error GC9A01::draw_rect(u16 x, u16 y, u16 w, u16 h, const Color color) const {
+    if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    if (x + w > GC9A01_WIDTH || y + h > GC9A01_HEIGHT) {
+        w = std::min(w, static_cast<u16>(GC9A01_WIDTH - x));
+        h = std::min(h, static_cast<u16>(GC9A01_HEIGHT - y));
+    }
+    Error err;
+    err = draw_fast_hline(x, y, w, color);
+    ERROR_CHECK(err);
+    err = draw_fast_hline(x, y + h - 1, w, color);
+    ERROR_CHECK(err);
+    err = draw_fast_vline(x, y, h, color);
+    ERROR_CHECK(err);
+    err = draw_fast_vline(x + w - 1, y, h, color);
+    ERROR_CHECK(err);
+    return OK;
+}
+
