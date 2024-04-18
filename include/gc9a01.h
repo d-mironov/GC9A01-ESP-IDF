@@ -111,8 +111,11 @@ public:
     Error draw_fast_vline   (u16 x, u16 y, u16 h, Color color) const;
     Error draw_line         (u16 x, u16 y, u16 x2, u16 y2, Color color) const;
     Error draw_rect         (u16 x, u16 y, u16 w, u16 h, Color color) const;
+    Error draw_circle       (u16 x, u16 y, u16 r, Color color) const;
+
+    Error set_rotation      (u8 rotation) const;
     
-    Error fill_rect         (Color color) const;
+    Error fill_rect         (u16 x, u16 y, u16 w, u16 h, Color color) const;
     Error fill              (Color color) const;
 
     // Reset
@@ -120,15 +123,17 @@ public:
     Error hard_reset        () const;
 
 private:
-    Error cmd               (const u8 cmnd) const;
-    Error send_byte         (const u8 byte) const;
-    Error send_word         (const u16 word) const;
-    Error data              (const u8* data, const u32 datasize) const;
-    Error set_write_window  (const u8 x, const u8 y, const u8 w, const u8 h) const;
+    Error cmd                       (const u8 cmnd) const;
+    Error send_byte                 (const u8 byte) const;
+    Error send_word                 (const u16 word) const;
+    Error data                      (const u8* data, const u32 datasize) const;
+    Error set_write_window          (const u8 x, const u8 y, const u8 w, const u8 h) const;
+
     spi_device_handle_t spi_;
     gpio_num_t mosi_;
     gpio_num_t clk_;
     gpio_num_t cs_;
     gpio_num_t dc_;
     gpio_num_t rst_;
+    bool is_bgr_;
 };

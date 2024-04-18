@@ -80,6 +80,11 @@
 #define CMD_SET_GAMMA_3 0xF2
 #define CMD_SET_GAMMA_4 0xF3
 
+
+#define MADCTL_MY 0x80
+#define MADCTL_MX 0x40
+#define MADCTL_MV 0x20
+
 #define ERROR_CHECK(error)\
 if ((error) != OK) {      \
     return error;         \
@@ -247,6 +252,7 @@ GC9A01::Error GC9A01::init() const
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
+    clear();
     return result;
 }
 
@@ -260,6 +266,44 @@ GC9A01::Error GC9A01::display_on() const {
 
 GC9A01::Error GC9A01::invert(const bool inv) const {
     return cmd(inv ? CMD_INVERT_ON : CMD_INVERT_OFF);
+}
+
+GC9A01::Error GC9A01::set_rotation(const u8 rotation) const {
+    Error err;
+    u8 madctl = 0;
+    switch (rotation) {
+        case 0:
+            madctl = 0x00;
+            break;
+        case 1:
+            madctl = MADCTL_MY;
+            break;
+        case 2:
+            madctl = MADCTL_MX;
+            break;
+        case 3:
+            madctl = MADCTL_MX | MADCTL_MY;
+            break;
+        case 4:
+            madctl = MADCTL_MV;
+            break;
+        case 5:
+            madctl = MADCTL_MV | MADCTL_MY;
+            break;
+        case 6:
+            madctl = MADCTL_MV | MADCTL_MX;
+            break;
+        case 7:
+            madctl = MADCTL_MV | MADCTL_MX | MADCTL_MY;
+            break;
+        default:
+            return INVALID_ARGUMENT;
+    }
+    err = cmd(CMD_MEM_ACCESS_CTL);
+    ERROR_CHECK(err);
+    err = data(&madctl, 1);
+    ERROR_CHECK(err);
+    return OK;
 }
 
 GC9A01::Error GC9A01::set_write_window(const u8 x, const u8 y, const u8 w, const u8 h) const {
@@ -421,6 +465,25 @@ GC9A01::Error GC9A01::draw_rect(u16 x, u16 y, u16 w, u16 h, const Color color) c
     ERROR_CHECK(err);
     err = draw_fast_vline(x + w - 1, y, h, color);
     ERROR_CHECK(err);
+    return OK;
+}
+
+GC9A01::Error GC9A01::fill_rect(u16 x, u16 y, u16 w, u16 h, const Color color) const {
+    if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    if (x + w > GC9A01_WIDTH || y + h > GC9A01_HEIGHT) {
+        w = std::min(w, static_cast<u16>(GC9A01_WIDTH - x));
+        h = std::min(h, static_cast<u16>(GC9A01_HEIGHT - y));
+    }
+    Error err;
+    u16 color16 = color.to_16bit();
+    u8 buf[2] = {static_cast<u8>(color16 >> 8), static_cast<u8>(color16 & 0xFF)};
+    err = set_write_window(x, y, w, h);
+    for (u32 i = 0; i < h * w; i++) {
+        err = data(buf, 2);
+        ERROR_CHECK(err);
+    }
     return OK;
 }
 
