@@ -14,9 +14,14 @@
 #define REDSHIFT    11
 #define GREENSHIFT  5
 
+typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
+typedef int64_t i64;
+typedef int32_t i32;
+typedef int16_t i16;
+typedef int8_t i8;
 
 
 typedef struct gc9a01_cmd_t {
@@ -101,6 +106,7 @@ public:
     Error clear         () const;
     
     Error set_pixel     (u16 x, u16 y, Color color) const;
+    Error draw_bitmap   (u16 x, u16 y, u16 w, u16 h, const u16* data) const;
     Error fill_rect     (Color color) const;
     Error fill          (Color color) const;
 

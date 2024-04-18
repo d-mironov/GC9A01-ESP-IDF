@@ -335,3 +335,23 @@ GC9A01::Error GC9A01::set_pixel(const u16 x, const u16 y, const Color color) con
 GC9A01::Error GC9A01::clear() const {
     return fill(Color(0, 0, 0));
 }
+
+GC9A01::Error GC9A01::draw_bitmap(const u16 x, const u16 y, u16 w, u16 h, const u16* bitmap) const {
+    if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    if (x + w > GC9A01_WIDTH || y + h > GC9A01_HEIGHT) {
+        w = std::min(w, static_cast<u16>(GC9A01_WIDTH - x));
+        h = std::min(h, static_cast<u16>(GC9A01_HEIGHT - y));
+    }
+    Error err;
+    err = set_write_window(x, y, w, h);
+    ERROR_CHECK(err);
+    for (u32 i = 0; i < w * h; i++) {
+        u16 color16 = bitmap[i];
+        u8 buf[2] = {static_cast<u8>(color16 >> 8), static_cast<u8>(color16 & 0xFF)};
+        err = data(buf, 2);
+        ERROR_CHECK(err);
+    }
+    return OK;
+}
