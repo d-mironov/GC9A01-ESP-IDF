@@ -39,7 +39,7 @@ typedef struct gc9a01_cmd_t {
 class GC9A01 {
 public:
     GC9A01();
-    GC9A01(spi_device_handle_t spi_, gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst);
+    GC9A01(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst);
     ~GC9A01() = default;
 
     /**

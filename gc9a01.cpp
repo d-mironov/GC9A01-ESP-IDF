@@ -182,11 +182,11 @@ GC9A01::GC9A01() :
 {
 }
 
-// GC9A01::GC9A01(spi_device_handle_t spi, gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst) : 
-//     spi_(spi), mosi_(mosi), clk_(clk), cs_(cs), dc_(dc), rst_(rst)
-// {
-// 
-// }
+GC9A01::GC9A01(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst) : 
+    mosi_(mosi), clk_(clk), cs_(cs), dc_(dc), rst_(rst)
+{
+
+}
 
 
 GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
@@ -253,24 +253,24 @@ GC9A01::Error GC9A01::soft_reset() const {
 GC9A01::Error GC9A01::init() 
 {
     LOG("Display Initialization");
-    LOG("SPI Host: %d", CONFIG_GC9A01_SPI_HOST);
+    LOG("SPI Host: %d", host_);
     esp_err_t esp_err;
     // GPIO setup
     gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << CONFIG_GC9A01_PIN_NUM_DC),
+        .pin_bit_mask = (1ULL << this->dc_),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
     };
     #ifdef CONFIG_GC9A01_RESET_USED
-    io_conf.pin_bit_mask |= (1ULL << CONFIG_GC9A01_PIN_NUM_RST);
+    io_conf.pin_bit_mask |= (1ULL << rst_);
     #endif
     gpio_config(&io_conf);
 
     // SPI setup
     spi_bus_config_t buscfg = {
-        .mosi_io_num = CONFIG_GC9A01_PIN_NUM_MOSI,
+        .mosi_io_num = mosi_,
         .miso_io_num = GPIO_NUM_NC,
-        .sclk_io_num = CONFIG_GC9A01_PIN_NUM_SCK,
+        .sclk_io_num = clk_,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = CONFIG_GC9A01_HEIGHT * CONFIG_GC9A01_WIDTH * 2
@@ -279,7 +279,7 @@ GC9A01::Error GC9A01::init()
     spi_device_interface_config_t devcfg = {
         .mode = 0,
         .clock_speed_hz = 80000000, // 40MHz
-        .spics_io_num = CONFIG_GC9A01_PIN_NUM_CS,
+        .spics_io_num = cs_,
         .flags = SPI_DEVICE_HALFDUPLEX,
         .queue_size = 7,
         .pre_cb = lcd_spi_pre_transfer_callback,
