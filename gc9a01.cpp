@@ -81,9 +81,10 @@
 #define CMD_SET_GAMMA_4 0xF3
 
 
-#define MADCTL_MY 0x80
-#define MADCTL_MX 0x40
-#define MADCTL_MV 0x20
+#define MADCTL_MY   0x80
+#define MADCTL_MX   0x40
+#define MADCTL_MV   0x20
+#define MADCTL_BGR  0x08
 
 #define ERROR_CHECK(error)\
 if ((error) != OK) {      \
@@ -160,14 +161,32 @@ static const gc9a01_cmd_t gc9a01_init_cmds[] {
     // {0, {0}, 0xff}, // END
 };
 
-GC9A01::GC9A01() {
-}
 
-GC9A01::GC9A01(spi_device_handle_t spi, gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst) : 
-    spi_(spi), mosi_(mosi), clk_(clk), cs_(cs), dc_(dc), rst_(rst)
+void lcd_spi_pre_transfer_callback(spi_transaction_t *t)
 {
-
+    int dc = (int)t->user;
+    gpio_set_level(static_cast<gpio_num_t>(CONFIG_GC9A01_PIN_NUM_DC), dc);
 }
+
+GC9A01::GC9A01() :
+    host_(static_cast<spi_host_device_t>(CONFIG_GC9A01_SPI_HOST)),
+    mosi_(static_cast<gpio_num_t>(CONFIG_GC9A01_PIN_NUM_MOSI)),
+    clk_(static_cast<gpio_num_t>(CONFIG_GC9A01_PIN_NUM_SCK)),
+    cs_(static_cast<gpio_num_t>(CONFIG_GC9A01_PIN_NUM_CS)),
+    dc_(static_cast<gpio_num_t>(CONFIG_GC9A01_PIN_NUM_DC)),
+#ifdef CONFIG_GC9A01_RESET_USED
+    rst_(static_cast<gpio_num_t>(CONFIG_GC9A01_PIN_NUM_RST))
+#else
+    rst_(GPIO_NUM_NC)
+#endif
+{
+}
+
+// GC9A01::GC9A01(spi_device_handle_t spi, gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gpio_num_t rst) : 
+//     spi_(spi), mosi_(mosi), clk_(clk), cs_(cs), dc_(dc), rst_(rst)
+// {
+// 
+// }
 
 
 GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
@@ -231,9 +250,47 @@ GC9A01::Error GC9A01::soft_reset() const {
     return cmd(CMD_SWRESET);
 }
 
-GC9A01::Error GC9A01::init() const
+GC9A01::Error GC9A01::init() 
 {
     LOG("Display Initialization");
+    LOG("SPI Host: %d", CONFIG_GC9A01_SPI_HOST);
+    esp_err_t esp_err;
+    // GPIO setup
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << CONFIG_GC9A01_PIN_NUM_DC),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+    };
+    #ifdef CONFIG_GC9A01_RESET_USED
+    io_conf.pin_bit_mask |= (1ULL << CONFIG_GC9A01_PIN_NUM_RST);
+    #endif
+    gpio_config(&io_conf);
+
+    // SPI setup
+    spi_bus_config_t buscfg = {
+        .mosi_io_num = CONFIG_GC9A01_PIN_NUM_MOSI,
+        .miso_io_num = GPIO_NUM_NC,
+        .sclk_io_num = CONFIG_GC9A01_PIN_NUM_SCK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = CONFIG_GC9A01_HEIGHT * CONFIG_GC9A01_WIDTH * 2
+        
+    };
+    spi_device_interface_config_t devcfg = {
+        .mode = 0,
+        .clock_speed_hz = 80000000, // 40MHz
+        .spics_io_num = CONFIG_GC9A01_PIN_NUM_CS,
+        .flags = SPI_DEVICE_HALFDUPLEX,
+        .queue_size = 7,
+        .pre_cb = lcd_spi_pre_transfer_callback,
+    };
+
+    esp_err = spi_bus_initialize(this->host_, &buscfg, SPI_DMA_CH_AUTO);
+    ESP_ERROR_CHECK(esp_err);
+    esp_err = spi_bus_add_device(this->host_, &devcfg, &this->spi_);
+    ESP_ERROR_CHECK(esp_err);
+
+
     hard_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
     soft_reset();
@@ -271,7 +328,8 @@ GC9A01::Error GC9A01::invert(const bool inv) const {
 GC9A01::Error GC9A01::set_rotation(const u8 rotation) const {
     Error err;
     u8 madctl = 0;
-    switch (rotation) {
+    // TODO: may need to optimize the modulus
+    switch (rotation % 8) {
         case 0:
             madctl = 0x00;
             break;
@@ -299,6 +357,8 @@ GC9A01::Error GC9A01::set_rotation(const u8 rotation) const {
         default:
             return INVALID_ARGUMENT;
     }
+    madctl |= is_bgr_ ? MADCTL_BGR : 0x00;
+
     err = cmd(CMD_MEM_ACCESS_CTL);
     ERROR_CHECK(err);
     err = data(&madctl, 1);
@@ -401,7 +461,7 @@ GC9A01::Error GC9A01::draw_bitmap(const u16 x, const u16 y, u16 w, u16 h, const 
     return OK;
 }
 
-GC9A01::Error GC9A01::draw_fast_hline(const u16 x, const u16 y, u16 w, const Color color) const {
+GC9A01::Error GC9A01::draw_hline(const u16 x, const u16 y, u16 w, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
     }
@@ -420,7 +480,7 @@ GC9A01::Error GC9A01::draw_fast_hline(const u16 x, const u16 y, u16 w, const Col
     return OK;
 }
 
-GC9A01::Error GC9A01::draw_fast_vline(const u16 x, const u16 y, u16 h, const Color color) const {
+GC9A01::Error GC9A01::draw_vline(const u16 x, const u16 y, u16 h, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
     }
@@ -444,7 +504,7 @@ GC9A01::Error GC9A01::draw_line(u16 x0, u16 y0, u16 x1, u16 y1, const Color colo
         return INVALID_ARGUMENT;
     }
     // TODO: Implement
-    Error err;
+    // Error err;
     return OK;
 }
 
@@ -457,13 +517,13 @@ GC9A01::Error GC9A01::draw_rect(u16 x, u16 y, u16 w, u16 h, const Color color) c
         h = std::min(h, static_cast<u16>(GC9A01_HEIGHT - y));
     }
     Error err;
-    err = draw_fast_hline(x, y, w, color);
+    err = draw_hline(x, y, w, color);
     ERROR_CHECK(err);
-    err = draw_fast_hline(x, y + h - 1, w, color);
+    err = draw_hline(x, y + h - 1, w, color);
     ERROR_CHECK(err);
-    err = draw_fast_vline(x, y, h, color);
+    err = draw_vline(x, y, h, color);
     ERROR_CHECK(err);
-    err = draw_fast_vline(x + w - 1, y, h, color);
+    err = draw_vline(x + w - 1, y, h, color);
     ERROR_CHECK(err);
     return OK;
 }

@@ -1,3 +1,4 @@
+# No backlight control for now
 menu "GC9A01 Display Config"
     config GC9A01_WIDTH
         int "GC9A01 Display Width"
@@ -16,13 +17,13 @@ menu "GC9A01 Display Config"
             Hardware SPI , HSPI=SPI2 , VSPI=SPI3
 
         config USE_SPI1_HOST
-            bool "USE SPI1 HOST"
+            bool "Use SPI1"
         config USE_SPI2_HOST
-            bool "USE SPI2 HOST"
+            bool "Use SPI2"
         config USE_SPI3_HOST
-            bool "USE SPI3 HOST"
+            bool "Use SPI3"
         config USE_SPI4_HOST
-            bool "USE SPI4 HOST"
+            bool "Use SPI4"
     endchoice
 
     config GC9A01_SPI_HOST
@@ -62,34 +63,6 @@ menu "GC9A01 Display Config"
         range 1 80
         default 40
 
-    config GC9A01_CONTROL_BACK_LIGHT_USED
-        bool "LCD Control Back Light"
-        default n
-
-    config GC9A01_PIN_NUM_BCKL
-        int "LCD BL(Back Light) GPIO Pin Number"
-        depends on GC9A01_CONTROL_BACK_LIGHT_USED
-        range 0 34
-        default 19
-
-    #---------------------------------------------
-    choice GC9A01_CONTROL_BACK_LIGHT_MODE
-        prompt "GC9A01b Control Back Light Mode"
-        default GC9A01_BACK_LIGHT_MODE_PWM
-        depends on GC9A01_CONTROL_BACK_LIGHT_USED
-        help
-            PWM use LEDC_TIMER_0 and LEDC_CHANNEL_0
-
-        config GC9A01_BACK_LIGHT_MODE_On_OFF
-            bool "USE GPIO ON/OF"
-        config GC9A01_BACK_LIGHT_MODE_PWM
-            bool "USE PWM"
-    endchoice
-
-    config GC9A01_CONTROL_BACK_LIGHT_MODE
-        int
-        default 0 if GC9A01_BACK_LIGHT_MODE_On_OFF
-        default 1 if GC9A01_BACK_LIGHT_MODE_PWM
     #---------------------------------------------
 
     config GC9A01_RESET_USED
@@ -109,20 +82,13 @@ menu "GC9A01 Display Config"
         default n
         help
             Disable for Direct Mode
-    config GC9A01_BUFFER_MODE_PSRAM
-        bool "Enable buffer allocation on PSRAM"
-        default n
-        depends on GC9A01_BUFFER_MODE
-        help
-            Allocates Buffer in PSRAM instead of internal
-            Only working for ESP32-S3 family with PSRAM
+    # config GC9A01_BUFFER_MODE_PSRAM
+    #     bool "Enable buffer allocation on PSRAM"
+    #     default n
+    #     depends on GC9A01_BUFFER_MODE
+    #     help
+    #         Allocates Buffer in PSRAM instead of internal
+    #         Only working for ESP32-S3 family with PSRAM
 
-    config GC9A01_BUFFER_SCREEN_FAST_MODE
-        bool "Don't Convert Buffer for Screen_Load() & Screen_Shot()"
-        default n
-        depends on GC9A01_BUFFER_MODE
-        help
-            If Enabled , the Screen_load() & Screen_Shot() don't run SwapBytes() for Buffer
-            & Direct Save Data to SPI Buffer,So the data must manually SwapBytes before Send to LCD.
 
 endmenu

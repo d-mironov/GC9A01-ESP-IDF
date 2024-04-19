@@ -99,7 +99,7 @@ public:
     };
 
     // NOTE: Maybe arguments needed: Add arguments for pin
-    Error init              () const;
+    Error init              ();
     Error display_on        () const;
     Error display_off       () const;
     Error invert            (const bool invert) const;
@@ -107,8 +107,8 @@ public:
     
     Error set_pixel         (u16 x, u16 y, Color color) const;
     Error draw_bitmap       (u16 x, u16 y, u16 w, u16 h, const u16* data) const;
-    Error draw_fast_hline   (u16 x, u16 y, u16 w, Color color) const;
-    Error draw_fast_vline   (u16 x, u16 y, u16 h, Color color) const;
+    Error draw_hline        (u16 x, u16 y, u16 w, Color color) const;
+    Error draw_vline        (u16 x, u16 y, u16 h, Color color) const;
     Error draw_line         (u16 x, u16 y, u16 x2, u16 y2, Color color) const;
     Error draw_rect         (u16 x, u16 y, u16 w, u16 h, Color color) const;
     Error draw_circle       (u16 x, u16 y, u16 r, Color color) const;
@@ -124,12 +124,11 @@ public:
 
 private:
     Error cmd                       (const u8 cmnd) const;
-    Error send_byte                 (const u8 byte) const;
-    Error send_word                 (const u16 word) const;
     Error data                      (const u8* data, const u32 datasize) const;
     Error set_write_window          (const u8 x, const u8 y, const u8 w, const u8 h) const;
 
     spi_device_handle_t spi_;
+    spi_host_device_t host_;
     gpio_num_t mosi_;
     gpio_num_t clk_;
     gpio_num_t cs_;
