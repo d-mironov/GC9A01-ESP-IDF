@@ -189,6 +189,12 @@ GC9A01::GC9A01(gpio_num_t mosi, gpio_num_t clk, gpio_num_t cs, gpio_num_t dc, gp
 }
 
 
+/**
+ * @brief Send `cmnd` to the display
+ *
+ * @param cmnd Command to send
+ * @return `OK` if the command was sent successfully, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     esp_err_t err;
     spi_transaction_t t;
@@ -210,6 +216,13 @@ GC9A01::Error GC9A01::cmd(const u8 cmnd) const {
     return err == ESP_OK ? OK : SPI_TRANSMIT_ERROR;
 }
 
+/**
+ * @brief Send `data` to the display
+ * 
+ * @param data Data to send
+ * @param datasize Size of the data
+ * @return `OK` if the data was sent successfully, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::data(const u8* data, const u32 datasize) const { 
     esp_err_t err;
     spi_transaction_t t;
@@ -232,7 +245,7 @@ GC9A01::Error GC9A01::data(const u8* data, const u32 datasize) const {
 /**
  * Perform a hard reset of the display.
  *
- * @returns `OK` if the reset was successful
+ * @returns `OK`
  */
 GC9A01::Error GC9A01::hard_reset() const {
     LOG("Hard reset");
@@ -245,11 +258,23 @@ GC9A01::Error GC9A01::hard_reset() const {
     return OK;
 }
 
+/**
+ * @brief Soft reset the display
+ * @return `OK` if the reset was successful, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::soft_reset() const {
     LOG("Soft reset");
     return cmd(CMD_SWRESET);
 }
 
+/**
+ * @brief Initialize the display with the configured settings in `menuconfig`
+ * 
+ * This function initializes the display with the settings configured in `menuconfig`.
+ * It sets up the GPIO pins, SPI bus and device, and sends the initialization commands.
+ * 
+ * @return `OK` if the initialization was successful, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::init() 
 {
     LOG("Display Initialization");
@@ -264,7 +289,8 @@ GC9A01::Error GC9A01::init()
     #ifdef CONFIG_GC9A01_RESET_USED
     io_conf.pin_bit_mask |= (1ULL << rst_);
     #endif
-    gpio_config(&io_conf);
+    esp_err = gpio_config(&io_conf);
+    ESP_ERROR_CHECK(esp_err);
 
     // SPI setup
     spi_bus_config_t buscfg = {
@@ -313,18 +339,38 @@ GC9A01::Error GC9A01::init()
     return result;
 }
 
+/**
+ * @brief Turns the display off
+ * 
+ * @return `OK` on success, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::display_off() const {
     return cmd(CMD_DISPLAY_OFF);
 }
 
+/**
+ * @brief Turns the display on
+ * 
+ * @return `OK` on success, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::display_on() const {
     return cmd(CMD_DISPLAY_ON);
 }
 
+/**
+ * @brief Sets the display color inversion
+ * @param inv `true` to invert the display, `false` to revert the inversion
+ * @return `OK` on success, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::invert(const bool inv) const {
     return cmd(inv ? CMD_INVERT_ON : CMD_INVERT_OFF);
 }
 
+/**
+ * @brief Set the rotation and mirroring of the display
+ * @param rotation 
+ * @return `OK` on success, `INVALID_ARGUMENT` if the rotation is invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::set_rotation(const u8 rotation) const {
     Error err;
     u8 madctl = 0;
@@ -366,6 +412,14 @@ GC9A01::Error GC9A01::set_rotation(const u8 rotation) const {
     return OK;
 }
 
+/**
+ * @brief Sets the write window for the display
+ * @param x starting `x` coordinate
+ * @param y starting `y` coordinate
+ * @param w width of the window
+ * @param h height of the window
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::set_write_window(const u8 x, const u8 y, const u8 w, const u8 h) const {
     if (x > GC9A01_WIDTH || y > GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
@@ -408,6 +462,12 @@ GC9A01::Error GC9A01::set_write_window(const u8 x, const u8 y, const u8 w, const
     return OK;
 }
 
+/**
+ * @brief Fill the screen with a `color`
+ * TODO: Replace with `fill_rect`
+ * @param color Color to fill the screen with
+ * @return `OK` on success, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::fill(const Color color) const {
     Error err;
     LOG("Fill screen: Color(%d)", color.to_16bit());
@@ -422,6 +482,13 @@ GC9A01::Error GC9A01::fill(const Color color) const {
     return OK;
 }
 
+/**
+ * @brief Set a pixel at `x`, `y` with a `color`
+ * @param x `x` coordinate
+ * @param y `y` coordinate
+ * @param color Color of the pixel
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::set_pixel(const u16 x, const u16 y, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
@@ -437,11 +504,28 @@ GC9A01::Error GC9A01::set_pixel(const u16 x, const u16 y, const Color color) con
 }
 
 
+/**
+ * @brief Clear the screen buffer
+ * @return `OK` on success, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::clear() const {
     return fill(Color(0, 0, 0));
 }
 
+/**
+ * @brief Draw a 16-bit color bitmap at `x`, `y`
+ * 
+ * @param x `x` coordinate
+ * @param y `y` coordinate
+ * @param w width of the bitmap
+ * @param h height of the bitmap
+ * @param bitmap 16-bit color array of the bitmap with size `w * h`
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::draw_bitmap(const u16 x, const u16 y, u16 w, u16 h, const u16* bitmap) const {
+    if (bitmap == nullptr) {
+        return INVALID_ARGUMENT;
+    }
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
     }
@@ -461,6 +545,14 @@ GC9A01::Error GC9A01::draw_bitmap(const u16 x, const u16 y, u16 w, u16 h, const 
     return OK;
 }
 
+/**
+ * @brief Draw a horizontal line at `x`, `y` with a width of `w` and a `color`
+ * @param x `x` coordinate
+ * @param y `y` coordinate
+ * @param w width
+ * @param color Color of the line
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::draw_hline(const u16 x, const u16 y, u16 w, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
@@ -480,6 +572,14 @@ GC9A01::Error GC9A01::draw_hline(const u16 x, const u16 y, u16 w, const Color co
     return OK;
 }
 
+/**
+ * @brief Draw a vertical line at `x`, `y` with a height of `h` and a `color`
+ * @param x `x` coordinate
+ * @param y `y` coordinate
+ * @param h height
+ * @param color Color of the line
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::draw_vline(const u16 x, const u16 y, u16 h, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
@@ -499,6 +599,16 @@ GC9A01::Error GC9A01::draw_vline(const u16 x, const u16 y, u16 h, const Color co
     return OK;
 }
 
+/**
+ * @brief Draw a line from `x0`, `y0` to `x1`, `y1` with a `color`
+ * **NOTE**: Not implemented
+ * @param x0 `x0` coordinate
+ * @param y0 `y0` coordinate
+ * @param x1 `x1` coordinate
+ * @param y1 `y1` coordinate
+ * @param color Color of the line
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::draw_line(u16 x0, u16 y0, u16 x1, u16 y1, const Color color) const {
     if (x0 >= GC9A01_WIDTH || y0 >= GC9A01_HEIGHT || x1 >= GC9A01_WIDTH || y1 >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
@@ -508,6 +618,16 @@ GC9A01::Error GC9A01::draw_line(u16 x0, u16 y0, u16 x1, u16 y1, const Color colo
     return OK;
 }
 
+/**
+ * @brief Draw a rectangle at `x`, `y` with a width of `w`, a height of `h` and a `color`
+ * 
+ * @param x `x` coordinate
+ * @param y `y` coordinate
+ * @param w width of the rectangle
+ * @param h height of the rectangle
+ * @param color Color of the rectangle
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::draw_rect(u16 x, u16 y, u16 w, u16 h, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;
@@ -528,6 +648,16 @@ GC9A01::Error GC9A01::draw_rect(u16 x, u16 y, u16 w, u16 h, const Color color) c
     return OK;
 }
 
+/**
+ * @brief Draw a filled rectangle at `x`, `y` with a width of `w`, a height of `h` and a `color`
+ * 
+ * @param x `x` coordinate
+ * @param y `y` coordinate
+ * @param w width of the rectangle
+ * @param h height of the rectangle
+ * @param color Color of the rectangle
+ * @return `OK` on success, `INVALID_ARGUMENT` if the arguments are invalid, else `SPI_TRANSMIT_ERROR`
+ */
 GC9A01::Error GC9A01::fill_rect(u16 x, u16 y, u16 w, u16 h, const Color color) const {
     if (x >= GC9A01_WIDTH || y >= GC9A01_HEIGHT) {
         return INVALID_ARGUMENT;

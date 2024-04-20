@@ -33,6 +33,52 @@ typedef struct gc9a01_cmd_t {
     u8 datasize;
 } gc9a01_cmd_t;
 
+struct Color {
+    u8 r;
+    u8 g;
+    u8 b;
+
+    u16 to_rgb444() const {
+        // Scale red value to 4 bits
+        u16 r = this->r * (15.0 / 255.0);
+        // Scale green value to 4 bits
+        u16 g = this->g * (15.0 / 255.0);
+        // Scale blue value to 4 bits
+        u16 b = this->b * (15.0 / 255.0);    
+        return (r << 8) | (g << 4) | b;
+    }
+
+    u16 to_12bit() const {
+        return to_rgb444();
+    }
+
+    u16 to_rgb565() const {
+        // Scale red value to 5 bits
+        u16 r = this->r * (31.0 / 255.0);
+        // Scale green value to 6 bits
+        u16 g = this->g * (63.0 / 255.0);
+        // Scale blue value to 5 bits
+        u16 b = this->b * (31.0 / 255.0);    
+        return (r << REDSHIFT) | (g << GREENSHIFT) | b;
+    }
+    u16 to_16bit() const {
+        return to_rgb565();
+    }
+
+    u32 to_rgb666() const {
+        // Scale red value to 6 bits
+        u32 r = this->r * (63.0 / 255.0);
+        // Scale green value to 6 bits
+        u32 g = this->g * (63.0 / 255.0);
+        // Scale blue value to 6 bits
+        u32 b = this->b * (63.0 / 255.0);    
+        return (r << 12) | (g << 6) | b;
+    }
+
+    u32 to_18bit() const {
+        return to_rgb666();
+    }
+};
 
 // TODO: Maybe move back to `esp_err_t`
 // TODO: Add buffer mode 
@@ -51,54 +97,9 @@ public:
         INVALID_ARGUMENT
     };
 
-    struct Color {
-        u8 r;
-        u8 g;
-        u8 b;
-
-        u16 to_rgb444() const {
-            // Scale red value to 4 bits
-            u16 r = this->r * (15.0 / 255.0);
-            // Scale green value to 4 bits
-            u16 g = this->g * (15.0 / 255.0);
-            // Scale blue value to 4 bits
-            u16 b = this->b * (15.0 / 255.0);    
-            return (r << 8) | (g << 4) | b;
-        }
-
-        u16 to_12bit() const {
-            return to_rgb444();
-        }
-
-        u16 to_rgb565() const {
-            // Scale red value to 5 bits
-            u16 r = this->r * (31.0 / 255.0);
-            // Scale green value to 6 bits
-            u16 g = this->g * (63.0 / 255.0);
-            // Scale blue value to 5 bits
-            u16 b = this->b * (31.0 / 255.0);    
-            return (r << REDSHIFT) | (g << GREENSHIFT) | b;
-        }
-        u16 to_16bit() const {
-            return to_rgb565();
-        }
-
-        u32 to_rgb666() const {
-            // Scale red value to 6 bits
-            u32 r = this->r * (63.0 / 255.0);
-            // Scale green value to 6 bits
-            u32 g = this->g * (63.0 / 255.0);
-            // Scale blue value to 6 bits
-            u32 b = this->b * (63.0 / 255.0);    
-            return (r << 12) | (g << 6) | b;
-        }
-
-        u32 to_18bit() const {
-            return to_rgb666();
-        }
-    };
 
     // NOTE: Maybe arguments needed: Add arguments for pin
+
     Error init              ();
     Error display_on        () const;
     Error display_off       () const;
