@@ -677,3 +677,63 @@ GC9A01::Error GC9A01::fill_rect(u16 x, u16 y, u16 w, u16 h, const Color color) c
     return OK;
 }
 
+
+// // Example (pseudocode for Midpoint Circle Algorithm):
+// void drawCircle(int16_t x0, int16_t y0, int16_t radius, uint16_t color) {
+//     int16_t x = radius;
+//     int16_t y = 0;
+//     int16_t err = 0;
+// 
+//     while (x >= y) {
+//         set_pixel(x0 + x, y0 + y, color);
+//         set_pixel(x0 + y, y0 + x, color);
+//         set_pixel(x0 - y, y0 + x, color);
+//         set_pixel(x0 - x, y0 + y, color);
+//         set_pixel(x0 - x, y0 - y, color);
+//         set_pixel(x0 - y, y0 - x, color);
+//         set_pixel(x0 + y, y0 - x, color);
+//         set_pixel(x0 + x, y0 - y, color);
+// 
+//         if (err <= 0) {
+//             y += 1;
+//             err += 2 * y + 1;
+//         }
+// 
+//         if (err > 0) {
+//             x -= 1;
+//             err -= 2 * x + 1;
+//         }
+//     }
+// }
+
+GC9A01::Error GC9A01::draw_circle(u16 x0, u16 y0, u16 r, const Color color) const {
+    // NOTE: Proof of concept, not optimized
+    // TODO: Optimize
+    if (x0 >= GC9A01_WIDTH || y0 >= GC9A01_HEIGHT) {
+        return INVALID_ARGUMENT;
+    }
+    i16 x = r;
+    i16 y = 0;
+    i16 err = 0;
+    while (x >= y) {
+        set_pixel(x0 + x, y0 + y, color);
+        set_pixel(x0 + y, y0 + x, color);
+        set_pixel(x0 - y, y0 + x, color);
+        set_pixel(x0 - x, y0 + y, color);
+        set_pixel(x0 - x, y0 - y, color);
+        set_pixel(x0 - y, y0 - x, color);
+        set_pixel(x0 + y, y0 - x, color);
+        set_pixel(x0 + x, y0 - y, color);
+
+        if (err <= 0) {
+            y += 1;
+            err += 2 * y + 1;
+        }
+        if (err > 0) {
+            x -= 1;
+            err -= 2 * x + 1;
+        }
+    }    
+    return OK;
+}
+
